@@ -3,6 +3,7 @@
 ;; ===========================================
 ;; (reduce f coll)
 ;; (reduce f val coll)
+;; The backbone of many of the Clojure sequence functions
 
 (defn my-reduce-val-coll [f val coll]
 	(if (seq coll)
@@ -18,6 +19,7 @@
 	(if (seq coll)
 		(recur f (f val (first coll)) (rest coll))
 		val))
+(my-reduce-val-coll-recur + 0 (range 10))
 (my-reduce-val-coll-recur + 0 (range 10000000))
 ;; Using (recur) gives us tail-call optimization:
 ;; constant-space recursive looping by rebinding & jumping to
@@ -55,7 +57,8 @@
 ;; Also works on strings, arrays, and Java Collections and Maps.
 
 (defn my-count [coll] ;; (f coll)
-  (my-reduce-final (fn [result _] (inc result)) 0 coll));; (reduce f val coll)
+  (reduce (fn [result _] (inc result)) 0 coll))
+	;; (reduce f val coll)
 
 (my-count ())
 (my-count (range 10))
@@ -63,24 +66,29 @@
 (my-count {:a 1 :b 2.0 :c "three"})
 
 ;; Note: This implementation is O(n)
-;; Some of the built-in functions are implemented as O(1) if the collection is Counted
-;; Vector, hash map (possibly other data types too) implement clojure.lang.Counted
-;; which is an interface that says "I know how many elements I contain"
+;; Some of the built-in functions are implemented as O(1)
+;;   if the collection is Counted
+;; Vector, hash-map (possibly other types too)
+;;   implement clojure.lang.Counted
+;; An interface that says "I know how many elements I contain"
 
 ;; ===========================================
 ;; (filter pred)
 ;; (filter pred coll)
-;; Returns a lazy sequence of the items in coll for which (pred item) returns true.
+;; Returns a lazy sequence of the items in coll
+;;   for which (pred item) returns true.
 ;; pred must be free of side-effects.
 ;; Returns a transducer when no collection is provided.
 
 ;; lazy-seq: macro to make a lazy sequence
-;; takes a body of expressions that return an ISeq or nil
-;; yields a Seqable object that will invoke the body only the first time seq is called
-;; caches the result and returns that on all subsequent seq calls
+;; Takes a body of expressions that return an ISeq or nil
+;; Yields a Seqable object that will invoke the body only
+;;   the first time seq is called
+;; Caches the result and returns that on all subsequent seq calls
 
 ;; Bad use of lazy-seq
-(defn my-non-lazy-filter [pred coll]
+;; (only making the final result lazy)
+(defn silly-lazy-filter [pred coll]
 	(loop [input coll result []]
 		(if (seq input)
 			(recur 	(rest input)
@@ -88,22 +96,25 @@
 					(conj result (first input))
 					result))
 			(lazy-seq result))))
-(my-non-lazy-filter even? (range 10))
-(take 2 (my-non-lazy-filter even? (range 10000000)))
+(silly-lazy-filter even? (range 10))
+(take 2 (silly-lazy-filter even? (range 10000000)))
+
 ;; Better lazy-seq filter implementation
-(defn my-filter [pred coll]
+;; We want the computation to be lazy
+(defn my-lazy-filter [pred coll]
 	(lazy-seq
 		(when (seq coll)
 			(if (pred (first coll))
-				(cons (first coll) (my-filter pred (rest coll)))
-				(my-filter pred (rest coll))))))
-(my-filter even? (range 10))
-(take 2 (my-filter even? (range 10000000)))
+				(cons (first coll) (my-lazy-filter pred (rest coll)))
+				(my-lazy-filter pred (rest coll))))))
+(my-lazy-filter even? (range 10))
+(take 2 (my-lazy-filter even? (range 10000000)))
 
-;; Note: filter will always return a lazy seq, rather than the input coll type
-(my-filter even? [0 1 2 3 4 5 6 7 8 9])
-;; Use into and the collection type if you want to keep working with the same coll type
-(into [] (my-filter even? [0 1 2 3 4 5 6 7 8 9]))
+;; Note: filter will always return a lazy seq
+;; rather than the input coll type
+(my-lazy-filter even? [0 1 2 3 4 5 6 7 8 9])
+;; Use (into) and coll type to keep working in the same coll type
+(into [] (my-lazy-filter even? [0 1 2 3 4 5 6 7 8 9]))
 
 
 ;; ===========================================
@@ -137,19 +148,17 @@
 				(cons (f (first c1) (first c2)) (my-map-2 f (rest c1) (rest c2)))))))
 (my-map-2
   (fn [i1 i2] (* i1 i2))
-    (my-filter odd? (rest (range 11)))
-    (my-filter even? (rest (range 11))))
+    (my-lazy-filter odd? (rest (range 11)))
+    (my-lazy-filter even? (rest (range 11))))
 
-;; Before we expand on this, let's look at the (every?) function
+;; Before we expand on this further...
 ;; (every? pred coll)
 ;; Returns true if (pred x) is logical true for every x in coll, else false.
 (every? seq [ [1 2 3] [4 5 6] ])
 (every? seq [ [1 2 3] [] ])
 (seq [])
-;; And the shorthand function syntax #()
 
-
-;; Now we can look at updating the map function to allow for n collections
+;; Now let's update the map function to allow for n collections
 
 ;; We need to declare my-map before we define reorder
 ;; as the two functions are mutually recursive
@@ -171,6 +180,11 @@
     (range 10)
     (range 10 20)
     (range 20 30)
-    ;; Uncomment to show how remaining collection items are ignored when a coll is exhausted
+    ;; Uncomment to show how remaining collection items
+		;; are ignored when a coll is exhausted
     ;(range 30 35))
     (range 30 40))
+
+;; -------------------------------------------------------
+;; Fin - functions
+;; -------------------------------------------------------
