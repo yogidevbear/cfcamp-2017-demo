@@ -81,7 +81,7 @@
 ;; Returns a transducer when no collection is provided.
 
 ;; lazy-seq: macro to make a lazy sequence
-;; Takes a body of expressions that return an ISeq or nil
+;; Takes a body of expressions that returns an ISeq or nil
 ;; Yields a Seqable object that will invoke the body only
 ;;   the first time seq is called
 ;; Caches the result and returns that on all subsequent seq calls
